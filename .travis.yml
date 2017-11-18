@@ -1,0 +1,322 @@
+language: cpp
+sudo: require
+dist: trusty
+
+before_install:
+- sudo add-apt-repository --yes ppa:ubuntu-sdk-team/ppa
+- sudo add-apt-repository --yes ppa:beineri/opt-qt-5.10.1-trusty
+- sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
+- sudo apt-get update -qq
+- sudo apt-get install build-essential qt510base qt510quickcontrols qt510serialport qt510charts-no-lgpl qt5103d qt510multimedia g++-4.8 libudev-dev libxcb-keysyms1-dev qt510x11extras qt510script gperf qt510svg cpanminus libxml2-utils docbook-xml docbook-xsl
+- export CXX="g++-4.8"
+- source /opt/qt*/bin/qt*-env.sh;
+- sudo cpanm URI::Escape
+#ECM
+- git clone git://anongit.kde.org/extra-cmake-modules
+- cd extra-cmake-modules
+- mkdir ecm-build
+- cd ecm-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf extra-cmake-modules
+#kxmlgui needs stuff so lets start building them
+#attica
+- git clone git://anongit.kde.org/attica.git
+- cd attica
+- mkdir attica-build
+- cd attica-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf attica
+#kwindowsystem
+- git clone git://anongit.kde.org/kwindowsystem.git
+- cd kwindowsystem
+- mkdir kwindowsystem-build
+- cd kwindowsystem-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kwindowsystem
+#karchive
+- git clone git://anongit.kde.org/karchive.git
+- cd karchive
+- mkdir karchive-build
+- cd karchive-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf karchive
+#Kcoreaddons
+- git clone git://anongit.kde.org/kcoreaddons.git
+- cd kcoreaddons
+- mkdir kcoreaddons-build
+- cd kcoreaddons-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kcoreaddons
+#Kitemviews
+- git clone git://anongit.kde.org/kitemviews.git
+- cd kitemviews
+- mkdir kitemviews-build
+- cd kitemviews-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kitemviews
+#kwidgetsaddons
+- git clone git://anongit.kde.org/kwidgetsaddons.git
+- cd kwidgetsaddons
+- mkdir kwidgetsaddons-build
+- cd kwidgetsaddons-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kwidgetsaddons
+#kl18n
+- git clone git://anongit.kde.org/ki18n.git
+- cd ki18n
+- mkdir ki18n-build
+- cd ki18n-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf ki18n
+#kconfig
+- git clone git://anongit.kde.org/kconfig.git
+- cd kconfig
+- mkdir kconfig-build
+- cd kconfig-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kconfig
+#kguiaddons
+- git clone git://anongit.kde.org/kguiaddons.git
+- cd kguiaddons
+- mkdir kguiaddons-build
+- cd kguiaddons-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kguiaddons
+#kcodecs
+- git clone git://anongit.kde.org/kcodecs.git
+- cd kcodecs
+- mkdir kcodecs-build
+- cd kcodecs-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kcodecs
+#kdbusaddsons
+- git clone git://anongit.kde.org/kdbusaddons.git
+- cd kdbusaddons
+- mkdir kdbusaddons-build
+- cd kdbusaddons-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kdbusaddons
+#sonnet
+- git clone git://anongit.kde.org/sonnet.git
+- cd sonnet
+- mkdir sonnet-build
+- cd sonnet-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf sonnet
+#kauth
+- git clone git://anongit.kde.org/kauth.git
+- cd kauth
+- mkdir kauth-build
+- cd kauth-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kauth
+#kcrash
+- git clone git://anongit.kde.org/kcrash.git
+- cd kcrash
+- mkdir kcrash-build
+- cd kcrash-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kcrash
+#kcompletion
+- git clone git://anongit.kde.org/kcompletion.git
+- cd kcompletion
+- mkdir kcompletion-build
+- cd kcompletion-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kcompletion
+#kconfigwidgets
+- git clone git://anongit.kde.org/kconfigwidgets.git
+- cd kconfigwidgets
+- mkdir kconfigwidgets-build
+- cd kconfigwidgets-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kconfigwidgets
+#kiconthemes
+- git clone git://anongit.kde.org/kiconthemes.git
+- cd kiconthemes
+- mkdir kiconthemes-build
+- cd kiconthemes-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kiconthemes
+#kservice
+- git clone git://anongit.kde.org/kservice.git
+- cd kservice
+- mkdir kservice-build
+- cd kservice-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kservice
+#kglobalaccel
+- git clone git://anongit.kde.org/kglobalaccel.git
+- cd kglobalaccel
+- mkdir kglobalaccel-build
+- cd kglobalaccel-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kglobalaccel
+#ktextwidgets
+- git clone git://anongit.kde.org/ktextwidgets.git
+- cd ktextwidgets
+- mkdir ktextwidgets-build
+- cd ktextwidgets-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf ktextwidgets
+#kxmlgui
+- git clone git://anongit.kde.org/kxmlgui.git
+- cd kxmlgui
+- mkdir kxmlgui-build
+- cd kxmlgui-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kxmlgui
+#KDocTools
+- git clone git://anongit.kde.org/kdoctools.git
+- cd kdoctools
+- mkdir kdoctools-build
+- cd kdoctools-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kdoctools
+#SOLID
+- git clone git://anongit.kde.org/solid.git
+- cd solid
+- mkdir solid-build
+- cd solid-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf solid
+#KF5bookmarks
+- git clone git://anongit.kde.org/kbookmarks.git
+- cd kbookmarks
+- mkdir kbookmarks-build
+- cd kbookmarks-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr ..>/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kbookmarks
+#Jobwidgets
+- git clone git://anongit.kde.org/kjobwidgets.git
+- cd kjobwidgets
+- mkdir kjobwidgets-build
+- cd kjobwidgets-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr ..>/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kjobwidgets
+#KIO
+- git clone git://anongit.kde.org/kio.git
+- cd kio
+- mkdir kio-build
+- cd kio-build
+- cmake -DBUILD_TESTING=NO -DCMAKE_INSTALL_PREFIX=/usr ..>/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kio
+#Kparts
+- git clone git://anongit.kde.org/kparts.git
+- cd kparts
+- mkdir kparts-build
+- cd kparts-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr ..>/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf kparts
+#ksyntaxhightlighting
+- git clone git://anongit.kde.org/syntax-highlighting.git
+- cd syntax-highlighting
+- mkdir build
+- cd build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf syntax-highlighting
+#ktextEditor
+- git clone git://anongit.kde.org/ktexteditor.git
+- cd ktexteditor
+- mkdir ktexteditor-build
+- cd ktexteditor-build
+- cmake -DCMAKE_INSTALL_PREFIX=/usr .. >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../../
+- sudo rm -rf ktexteditor
+#QWT
+- wget http://downloads.sourceforge.net/sourceforge/qwt/qwt-6.1.3.tar.bz2
+#Patch QWT with Craft patch
+- tar -vxjf qwt-6.1.3.tar.bz2 >/dev/null
+- wget https://raw.githubusercontent.com/KDE/craft-blueprints-kde/5ec082219c2a7d03c9112f60c1f38540e239d2e3/kdesupport/qwt/qwt-6.1.3-20180429.diff
+- patch -p0 -i qwt-6.1.3-20180429.diff
+- cd qwt-6.1.3
+- sed -i -e 's/QWT_CONFIG     += QwtDesigner/#QWT_CONFIG     += QwtDesigner/' qwtconfig.pri
+- qmake qwt.pro  >/dev/null
+- sudo make -j4 install
+- cd ../
+- sudo rm -rf qwt-6.1.3
+#Atcore
+- git clone git://anongit.kde.org/atcore.git
+- cd atcore
+- cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr CMakeLists.txt  >/dev/null
+- sudo make -j4 install >/dev/null
+- cd ../
+- sudo rm -rf atcore
+script:
+- cmake -Bbuild -H. -DCMAKE_INSTALL_PREFIX=/usr -DQWT_INCLUDE_DIR=/opt/qt510/include/ -DQWT_LIBRARY=/opt/qt510/lib/libqwt.so
+- cd build
+- make -j4
+- make install DESTDIR=AppDir install; find AppDir/
+- mkdir -p AppDir/usr/bin/plugins
+- cp /usr/lib/x86_64-linux-gnu/plugins/AtCore/* AppDir/usr/bin/plugins/
+- wget -c "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+- chmod a+x linuxdeploy*.AppImage
+- unset QTDIR; unset QT_PLUGIN_PATH ; unset LD_LIBRARY_PATH
+- ./linuxdeploy*.AppImage --appdir AppDir --output appimage
+after_success:
+- wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh
+- bash ./upload.sh ./*atelier*.AppImage*;
+ 
+branches:
+  except:
+    - # Do not build tags that we create when we upload to GitHub Releases
+    - /^(?i:continuous)$/
