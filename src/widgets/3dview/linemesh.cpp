@@ -40,10 +40,6 @@ LineMesh::LineMesh(Qt3DCore::QNode *parent) :
     connect(&_gcode, &GcodeTo4D::posFinished, this, &LineMesh::posUpdate);
 }
 
-LineMesh::~LineMesh()
-{
-}
-
 void LineMesh::readAndRun(const QString &path)
 {
     _gcode.read(path);
@@ -58,11 +54,9 @@ void LineMesh::posUpdate(const QVector<QVector4D> &pos)
 {
     QVector<QVector3D> vertices;
     vertices.reserve(pos.size());
-    std::transform(pos.cbegin(), pos.cend(),
-                   std::back_inserter(vertices),
-                   [](const QVector4D & x) {
-                       return x.toVector3D();
-                   });
+    std::transform(pos.cbegin(), pos.cend(), std::back_inserter(vertices), [](const QVector4D & x) {
+        return x.toVector3D();
+    });
 
     _lineMeshGeo = new LineMeshGeometry(vertices, this);
     setVertexCount(_lineMeshGeo->vertexCount());

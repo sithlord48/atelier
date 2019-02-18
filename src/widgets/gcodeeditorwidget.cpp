@@ -25,12 +25,12 @@
 
 GCodeEditorWidget::GCodeEditorWidget(QWidget *parent) :
     QWidget(parent)
-    , m_tabwidget(new QTabWidget())
+    , m_tabwidget(new QTabWidget(this))
 {
     setAcceptDrops(true);
     m_editor = KTextEditor::Editor::instance();
     setupTabWidget();
-    QVBoxLayout *layout = new QVBoxLayout();
+    auto layout = new QVBoxLayout();
     layout->addWidget(m_tabwidget);
     setLayout(layout);
 }
@@ -87,7 +87,7 @@ KTextEditor::View *GCodeEditorWidget::newView(KTextEditor::Document *doc)
 {
     auto view = doc->createView(this);
     // Connection is a hack using undocumented parts of KTextEditor::View.
-    // One day this may break, KTextEditor::View needs this added correcty as a real slot to the API.
+    // One day this may break, KTextEditor::View needs this added correctly as a real slot to the API.
     // Hopefully we can get that added and use it in the future.
     // This must be the older style connect string or it will not work.
     connect(view, SIGNAL(dropEventPass(QDropEvent *)), this, SLOT(dropCatch(QDropEvent *)));

@@ -34,8 +34,15 @@ ProfilesDialog::ProfilesDialog(QWidget *parent) :
     ui->baudCB->addItems(SERIAL::BAUDS);
     ui->baudCB->setCurrentText(QLatin1String("115200"));
     ui->profileCB->setAutoCompletion(true);
-    connect(ui->profileCB, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this] {
+    connect(ui->profileCB, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](const int newIndex) {
+        blockSignals(true);
+        ui->profileCB->setCurrentIndex(m_prevIndex);
+        blockSignals(false);
         askToSave();
+        blockSignals(true);
+        m_prevIndex = newIndex;
+        ui->profileCB->setCurrentIndex(m_prevIndex);
+        blockSignals(false);
         loadSettings();
     });
     updateCBProfiles();
@@ -54,12 +61,9 @@ ProfilesDialog::ProfilesDialog(QWidget *parent) :
     });
 
     connect(ui->removeProfilePB, &QPushButton::clicked, this, &ProfilesDialog::removeProfile);
-#ifdef Q_OS_LINUX
-    ui->removeProfilePB->setIcon(QIcon::fromTheme("edit-delete"));
-#else
-    ui->removeProfilePB->setIcon(style()->standardIcon(QStyle::SP_TrashIcon));
-#endif
-//if any control is modifed and no load / save has happend contents are not saved.
+    ui->removeProfilePB->setIcon(QIcon::fromTheme(QStringLiteral("edit-delete"), style()->standardIcon(QStyle::SP_TrashIcon)));
+
+//if any control is modified and no load / save has happened contents are not saved.
     auto modify = [this] {setModified(true);};
     connect(ui->baudCB, &QComboBox::currentTextChanged, modify);
     connect(ui->radiusSB, &QSpinBox::editingFinished, modify);
@@ -72,6 +76,7 @@ ProfilesDialog::ProfilesDialog(QWidget *parent) :
     connect(ui->extruderTempSB, &QSpinBox::editingFinished, modify);
     connect(ui->postPauseLE, &QLineEdit::editingFinished, modify);
     connect(ui->firmwareCB, &QComboBox::currentTextChanged, modify);
+    connect(ui->autoReportTempCK, &QCheckBox::stateChanged, modify);
 }
 
 ProfilesDialog::~ProfilesDialog()
@@ -134,13 +139,14 @@ void ProfilesDialog::save()
     } else {
         m_settings.setValue(QStringLiteral("isCartesian"), false);
         m_settings.setValue(QStringLiteral("radius"), ui->radiusSB->value());
-        m_settings.setValue(QStringLiteral("z_delta_dimension"), ui->z_dimensionSB->value());
+        m_settings.setValue(QStringLiteral("z_delta_dimension"), ui->z_delta_dimensionSB->value());
     }
 
     m_settings.setValue(QStringLiteral("heatedBed"), ui->heatedBedCK->isChecked());
     m_settings.setValue(QStringLiteral("maximumTemperatureBed"), ui->bedTempSB->value());
     //HOTEND
     m_settings.setValue(QStringLiteral("maximumTemperatureExtruder"), ui->extruderTempSB->value());
+    m_settings.setValue(QStringLiteral("autoReportTemp"), ui->autoReportTempCK->isChecked());
     //Baud
     m_settings.setValue(QStringLiteral("bps"), ui->baudCB->currentText());
     m_settings.setValue(QStringLiteral("firmware"), ui->firmwareCB->currentText());
@@ -174,20 +180,21 @@ void ProfilesDialog::loadSettings(const QString &currentProfile)
         ui->printerTypeStack->setCurrentIndex(0);
         ui->deltaRB->setChecked(true);
         ui->cartesianRB->setChecked(false);
-        ui->radiusSB->setValue(m_settings.value(QStringLiteral("radius"), QStringLiteral("0")).toFloat());
-        ui->z_delta_dimensionSB->setValue(m_settings.value(QStringLiteral("z_delta_dimension"), QStringLiteral("0")).toFloat());
+        ui->radiusSB->setValue(m_settings.value(QStringLiteral("radius"), QStringLiteral("0")).toInt());
+        ui->z_delta_dimensionSB->setValue(m_settings.value(QStringLiteral("z_delta_dimension"), QStringLiteral("0")).toInt());
     }
 
     ui->heatedBedCK->setChecked(m_settings.value(QStringLiteral("heatedBed"), QStringLiteral("true")).toBool());
     ui->bedTempSB->setEnabled(ui->heatedBedCK->isChecked());
     ui->bedTempSB->setValue(m_settings.value(QStringLiteral("maximumTemperatureBed"), QStringLiteral("0")).toInt());
+    ui->autoReportTempCK->setChecked(m_settings.value(QStringLiteral("autoReportTemp"), QStringLiteral("false")).toBool());
 
     //HOTEND
     ui->extruderTempSB->setValue(m_settings.value(QStringLiteral("maximumTemperatureExtruder"), QStringLiteral("0")).toInt());
     //Baud
     ui->baudCB->setCurrentText(m_settings.value(QStringLiteral("bps"), QStringLiteral("115200")).toString());
     ui->firmwareCB->setCurrentText(m_settings.value(QStringLiteral("firmware"), QStringLiteral("Auto-Detect")).toString());
-    ui->postPauseLE->setText(m_settings.value(QStringLiteral("postPause"), QStringLiteral("")).toString());
+    ui->postPauseLE->setText(m_settings.value(QStringLiteral("postPause"), QString()).toString());
     m_settings.endGroup();
     m_settings.endGroup();
     setModified(false);
@@ -223,10 +230,11 @@ QStringList ProfilesDialog::detectFWPlugins()
     QStringList firmwares;
     QStringList paths = AtCoreDirectories::pluginDir;
     //Add our runtime paths
-    paths.prepend(qApp->applicationDirPath() + QStringLiteral("/../Plugins/AtCore"));
-    paths.prepend(qApp->applicationDirPath() + QStringLiteral("/AtCore"));
-    paths.prepend(qApp->applicationDirPath() + QStringLiteral("/plugins"));
-    for (const QString &path : paths) {
+    const QString &path(qApp->applicationDirPath());
+    paths.prepend(path + QStringLiteral("/../Plugins/AtCore"));
+    paths.prepend(path + QStringLiteral("/AtCore"));
+    paths.prepend(path + QStringLiteral("/plugins"));
+    for (const QString &path : qAsConst(paths)) {
         firmwares = firmwaresInPath(path);
         if (!firmwares.isEmpty()) {
             //use path where plugins were detected.

@@ -35,7 +35,7 @@
 
 MainWindow::MainWindow(QWidget *parent) :
     KXmlGuiWindow(parent)
-    , m_currEditorView(nullptr)
+    , m_currInstance(0)
     , m_theme(getTheme())
     , m_instances(new QTabWidget(this))
 {
@@ -69,7 +69,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
     bool closePrompt = false;
     for (int i = 0; i < m_instances->count(); i++) {
-        AtCoreInstanceWidget *instance = qobject_cast<AtCoreInstanceWidget *>(m_instances->widget(i));
+        auto instance = qobject_cast<AtCoreInstanceWidget *>(m_instances->widget(i));
         if (instance->isPrinting()) {
             closePrompt = true;
             break;
@@ -116,11 +116,11 @@ void MainWindow::initWidgets()
     // View:
     // Sidebar, Sidebar Controls, Printer Tabs.
     // Sidebar Controls and Printer Tabs can be resized, Sidebar can't.
-    auto splitter = new QSplitter();
+    auto splitter = new QSplitter(this);
     splitter->addWidget(m_lateral.m_stack);
     splitter->addWidget(m_instances);
 
-    auto addTabBtn = new QToolButton();
+    auto addTabBtn = new QToolButton(this);
     addTabBtn->setIconSize(QSize(fontMetrics().lineSpacing(), fontMetrics().lineSpacing()));
     addTabBtn->setIcon(QIcon::fromTheme("list-add", QIcon(QString(":/%1/addTab").arg(m_theme))));
     addTabBtn->setToolTip(i18n("Create new instance"));
@@ -132,20 +132,20 @@ void MainWindow::initWidgets()
     centralLayout->addWidget(m_lateral.m_toolBar);
     centralLayout->addWidget(splitter);
 
-    auto *centralWidget = new QWidget();
+    auto *centralWidget = new QWidget(this);
     centralWidget->setLayout(centralLayout);
     setCentralWidget(centralWidget);
 }
 
 void MainWindow::newAtCoreInstance()
 {
-    auto newInstanceWidget = new AtCoreInstanceWidget();
+    auto newInstanceWidget = new AtCoreInstanceWidget(this);
     QString name = QString::number(m_instances->addTab(newInstanceWidget, i18n("Connect a printer")));
     newInstanceWidget->setObjectName(name);
     newInstanceWidget->setFileCount(m_openFiles.size());
     connect(this, &MainWindow::profilesChanged, newInstanceWidget, &AtCoreInstanceWidget::updateProfileData);
     connect(newInstanceWidget, &AtCoreInstanceWidget::requestProfileDialog, this, [this] {
-        std::unique_ptr<ProfilesDialog> pd(new ProfilesDialog);
+        std::unique_ptr<ProfilesDialog> pd(new ProfilesDialog(this));
         pd->exec();
         emit(profilesChanged());
     });
@@ -164,9 +164,10 @@ void MainWindow::newAtCoreInstance()
             break;
         default:
             ChooseFileDialog dialog(this, m_openFiles);
-            if (dialog.exec() == QDialog::Accepted) {
-                file = dialog.choosenFile();
+            if (dialog.exec() != QDialog::Accepted) {
+                return;
             }
+            file = dialog.choosenFile();
             break;
         }
         if (m_gcodeEditor->modifiedFiles().contains(file))
@@ -181,11 +182,18 @@ void MainWindow::newAtCoreInstance()
                          );
             if (result == QMessageBox::Cancel) {
                 return;
-            } else if (result == QMessageBox::Save) {
+            }
+            if (result == QMessageBox::Save) {
                 m_gcodeEditor->saveFile(file);
             }
         }
         newInstanceWidget->printFile(file);
+    });
+
+    connect(newInstanceWidget, &AtCoreInstanceWidget::bedSizeChanged, this, [this](const QSize & newSize) {
+        if (m_currInstance == m_instances->currentIndex()) {
+            updateBedSize(newSize);
+        }
     });
 
     connect(newInstanceWidget, &AtCoreInstanceWidget::connectionChanged, this, &MainWindow::atCoreInstanceNameChange);
@@ -199,8 +207,8 @@ void MainWindow::newAtCoreInstance()
 // Move to LateralArea.
 void MainWindow::setupLateralArea()
 {
-    m_lateral.m_toolBar = new QWidget();
-    m_lateral.m_stack = new QStackedWidget();
+    m_lateral.m_toolBar = new QWidget(this);
+    m_lateral.m_stack = new QStackedWidget(this);
     auto buttonLayout = new QVBoxLayout();
 
     auto setupButton = [this, buttonLayout](const QString & key, const QString & text, const QIcon & icon, QWidget * w) {
@@ -208,15 +216,16 @@ void MainWindow::setupLateralArea()
         btn->setToolTip(text);
         btn->setAutoExclusive(true);
         btn->setCheckable(true);
-        //3d view is on top set it checked so users see its selected.
+        //Check the top most widget, so users see its selected at startup time.
         btn->setChecked(key == QStringLiteral("welcome"));
         btn->setIcon(icon);
         //Set an iconSize based on the DPI.
         //96 was considered to be the "standard" DPI for years.
-        //Hi-dpi monitors have a higher DPI
+        //Hi-dpi monitors have a higher DPI; 150+
         //Tiny or old screen could have a lower DPI.
-        //Start our iconSize at 16 so with a DPI less then 96 we get a sane iconsize.
-        int iconSize = 16 + ((logicalDpiX() / 96) * 16);
+        //Start our iconSize at 16 so with a low DPI we get a sane iconsize.
+        //Use 72 to better scale for less dense Hi-Dpi screens
+        int iconSize = 16 + ((logicalDpiX() / 72) * 16);
         btn->setIconSize(QSize(iconSize, iconSize));
         btn->setFixedSize(btn->iconSize());
         btn->setFlat(true);
@@ -250,15 +259,21 @@ void MainWindow::setupLateralArea()
 
     auto *viewer3D = new Viewer3D(this);
     connect(viewer3D, &Viewer3D::droppedUrls, this, &MainWindow::processDropEvent);
-
-    connect(m_gcodeEditor, &GCodeEditorWidget::currentFileChanged, this, [this, viewer3D](const QUrl & url) {
-        viewer3D->drawModel(url.toString());
+    //Connect for bed size
+    connect(m_instances, &QTabWidget::currentChanged, this, [this](int index) {
+        m_currInstance = index;
+        auto tempWidget = qobject_cast<AtCoreInstanceWidget *>(m_instances->widget(index));
+        updateBedSize(tempWidget->bedSize());
     });
 
-    setupButton("welcome", i18n("&Welcome"), QIcon::fromTheme("go-home", QIcon(QString(":/%1/home").arg(m_theme))), new WelcomeWidget(this));
-    setupButton("3d", i18n("&3D"), QIcon::fromTheme("draw-cuboid", QIcon(QString(":/%1/3d").arg(m_theme))), viewer3D);
-    setupButton("gcode", i18n("&GCode"), QIcon::fromTheme("accessories-text-editor", QIcon(":/icon/edit")), m_gcodeEditor);
-    setupButton("video", i18n("&Video"), QIcon::fromTheme("camera-web", QIcon(":/icon/video")), new VideoMonitorWidget(this));
+    connect(m_gcodeEditor, &GCodeEditorWidget::currentFileChanged, this, [viewer3D](const QUrl & url) {
+        viewer3D->drawModel(url.toLocalFile());
+    });
+
+    setupButton("welcome", i18n("Welcome"), QIcon::fromTheme("go-home", QIcon(QString(":/%1/home").arg(m_theme))), new WelcomeWidget(this));
+    setupButton("3d", i18n("3D"), QIcon::fromTheme("draw-cuboid", QIcon(QString(":/%1/3d").arg(m_theme))), viewer3D);
+    setupButton("gcode", i18n("GCode"), QIcon::fromTheme("accessories-text-editor", QIcon(":/icon/edit")), m_gcodeEditor);
+    setupButton("video", i18n("Video"), QIcon::fromTheme("camera-web", QIcon(":/icon/video")), new VideoMonitorWidget(this));
     buttonLayout->addStretch();
     m_lateral.m_toolBar->setLayout(buttonLayout);
 }
@@ -319,7 +334,7 @@ void MainWindow::loadFile(const QUrl &fileName)
     if (!fileName.isEmpty()) {
 
         m_lateral.get<GCodeEditorWidget>("gcode")->loadFile(fileName);
-        m_lateral.get<Viewer3D>("3d")->drawModel(fileName.toString());
+        m_lateral.get<Viewer3D>("3d")->drawModel(fileName.toLocalFile());
         // Make 3dview focused when opening a file
         if (m_openFiles.isEmpty() && m_lateral.m_stack->currentWidget() == m_lateral.get<WelcomeWidget>("welcome")) {
             m_lateral.getButton<QPushButton>("3d")->setChecked(true);
@@ -401,29 +416,32 @@ bool MainWindow::askToSave(const QVector<QUrl> &fileList)
         return true;
     }
     QSize iconSize = QSize(fontMetrics().lineSpacing(), fontMetrics().lineSpacing());
-    auto dialog = new QDialog();
+    auto dialog = new QDialog(this);
     const int padding = 30;
-    auto listWidget = new QListWidget();
+    auto listWidget = new QListWidget(dialog);
     listWidget->setMinimumWidth(fontMetrics().height() / 2  * padding);
     for (const auto &url : fileList) {
         listWidget->addItem(url.toLocalFile() + " [*]");
     }
 
     auto hLayout = new QHBoxLayout();
-    auto saveBtn = new QPushButton(QIcon::fromTheme("document-save", QIcon(QStringLiteral(":/%1/save").arg(m_theme))), i18n("Save Selected"));
+    auto saveBtn = new QPushButton(QIcon::fromTheme("document-save", QIcon(QStringLiteral(":/%1/save").arg(m_theme))), i18n("Save Selected"), dialog);
     saveBtn->setIconSize(iconSize);
-    connect(saveBtn, &QPushButton::clicked, this, [this, &listWidget, &fileList, &dialog] {
+    saveBtn->setEnabled(false);
+
+    connect(listWidget, &QListWidget::currentRowChanged, this, [saveBtn](const int currentRow) {
+        saveBtn->setEnabled(currentRow >= 0);
+    });
+
+    connect(saveBtn, &QPushButton::clicked, this, [this, listWidget, &fileList, dialog] {
         if (!m_gcodeEditor->saveFile(fileList.at(listWidget->currentRow())))
         {
-            QMessageBox::information(this, i18n("Save Failed"), i18n("Failed to save file: %1").arg(fileList.at(listWidget->currentRow()).toLocalFile()));
+            QMessageBox::information(this, i18n("Save Failed"), i18n("Failed to save file: %1", fileList.at(listWidget->currentRow()).toLocalFile()));
         } else
         {
-            QString txt = listWidget->item(listWidget->currentRow())->text();
-            txt.remove(" [*]");
-            listWidget->item(listWidget->currentRow())->setText(txt);
+            listWidget->item(listWidget->currentRow())->setText(listWidget->item(listWidget->currentRow())->text().remove(" [*]"));
             for (int i = 0; i < listWidget->count(); i++) {
-                QString string = listWidget->item(i)->text();
-                if (string.endsWith(" [*]")) {
+                if (listWidget->item(i)->text().endsWith(" [*]")) {
                     return;
                 }
             }
@@ -432,44 +450,48 @@ bool MainWindow::askToSave(const QVector<QUrl> &fileList)
     });
     hLayout->addWidget(saveBtn);
 
-    auto saveAllBtn = new QPushButton(QIcon::fromTheme("document-save-all", QIcon(QStringLiteral(":/%1/saveAll").arg(m_theme))), i18n("Save All"));
+    auto saveAllBtn = new QPushButton(QIcon::fromTheme("document-save-all", QIcon(QStringLiteral(":/%1/saveAll").arg(m_theme))), i18n("Save All"), dialog);
     saveAllBtn->setIconSize(iconSize);
-    connect(saveAllBtn, &QPushButton::clicked, this, [this, &listWidget, &fileList, &dialog] {
+    connect(saveAllBtn, &QPushButton::clicked, this, [this, listWidget, &fileList, dialog] {
         for (int i = 0; i < listWidget->count(); i++)
         {
             if (!m_gcodeEditor->saveFile(fileList.at(i))) {
-                QMessageBox::information(this, i18n("Save Failed"), i18n("Failed to save file: %1").arg(fileList.at(i).toLocalFile()));
+                QMessageBox::information(this, i18n("Save Failed"), i18n("Failed to save file: %1", fileList.at(i).toLocalFile()));
                 dialog->reject();
             } else {
-                QString txt = listWidget->item(listWidget->currentRow())->text();
-                txt.remove(" [*]");
-                listWidget->item(listWidget->currentRow())->setText(txt);
+                listWidget->item(i)->setText(listWidget->item(i)->text().remove(" [*]"));
             }
         }
         dialog->accept();
     });
     hLayout->addWidget(saveAllBtn);
 
-    auto cancelBtn = new QPushButton(QIcon::fromTheme("dialog-cancel", QIcon(QStringLiteral(":/%1/cancel").arg(m_theme))), i18n("Cancel"));
+    auto cancelBtn = new QPushButton(QIcon::fromTheme("dialog-cancel", QIcon(QStringLiteral(":/%1/cancel").arg(m_theme))), i18n("Cancel"), dialog);
     cancelBtn->setIconSize(iconSize);
-    connect(cancelBtn, &QPushButton::clicked, this, [&dialog] {
+    cancelBtn->setDefault(true);
+    connect(cancelBtn, &QPushButton::clicked, this, [dialog] {
         dialog->reject();
     });
     hLayout->addWidget(cancelBtn);
 
-    auto ignoreBtn = new QPushButton(QIcon::fromTheme("window-close", QIcon(QStringLiteral(":/icon/close"))), i18n("Ignore"));
+    auto ignoreBtn = new QPushButton(QIcon::fromTheme("edit-delete", style()->standardIcon(QStyle::SP_TrashIcon)), i18n("Discard Changes"), dialog);
     ignoreBtn->setIconSize(iconSize);
-    connect(ignoreBtn, &QPushButton::clicked, this, [&dialog] {
+    connect(ignoreBtn, &QPushButton::clicked, this, [dialog] {
         dialog->accept();
     });
     hLayout->addWidget(ignoreBtn);
 
     auto layout = new QVBoxLayout;
-    auto label = new QLabel(i18n("Files with Unsaved Changes."));
+    auto label = new QLabel(i18n("Files with Unsaved Changes."), dialog);
     layout->addWidget(label);
     layout->addWidget(listWidget);
     layout->addItem(hLayout);
     dialog->setLayout(layout);
 
     return dialog->exec();
+}
+
+void MainWindow::updateBedSize(const QSize &newSize)
+{
+    m_lateral.get<Viewer3D>("3d")->setBedSize(newSize);
 }

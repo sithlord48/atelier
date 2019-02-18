@@ -26,24 +26,17 @@
 #include <QVector4D>
 #include "fileloader.h"
 
-namespace
-{
-const static QString _commentChar = QStringLiteral(";");
-const static QStringList _moveCommands = {QStringLiteral("G0"), QStringLiteral("G1")};
-const static QString _space = QStringLiteral(" ");
-const static QString _E = QStringLiteral("E");
-const static QString _X = QStringLiteral("X");
-const static QString _Y = QStringLiteral("Y");
-const static QString _Z = QStringLiteral("Z");
-}
+const QString FileLoader::_commentChar = QStringLiteral(";");
+const QStringList FileLoader::_moveCommands = {QStringLiteral("G0"), QStringLiteral("G1")};
+const QString FileLoader::_space = QStringLiteral(" ");
+const QString FileLoader::_E = QStringLiteral("E");
+const QString FileLoader::_X = QStringLiteral("X");
+const QString FileLoader::_Y = QStringLiteral("Y");
+const QString FileLoader::_Z = QStringLiteral("Z");
 
 FileLoader::FileLoader(QString &fileName, QObject *parent) :
     QObject(parent)
     , _file(fileName)
-{
-}
-
-FileLoader::~FileLoader()
 {
 }
 
@@ -54,15 +47,15 @@ void FileLoader::run()
     qint64 stillSize = totalSize;
 
     if (_file.open(QIODevice::ReadOnly)) {
-        float lastPerc = 0.0;
+        int lastPerc = 0;
         QTextStream in(&_file);
         while (!in.atEnd()) {
             //Get each line
             QString line = in.readLine();
             stillSize -= line.size() + 1; // +1 endl
-            const float perc = (totalSize -  stillSize) * 100.0 / totalSize;
+            const int perc = int((totalSize -  stillSize) * 100.0 / totalSize);
             if (perc - lastPerc > 1) {
-                emit percentUpdate((int)perc);
+                emit percentUpdate(perc);
                 lastPerc = perc;
             }
             line = line.simplified();

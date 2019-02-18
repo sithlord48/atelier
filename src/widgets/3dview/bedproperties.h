@@ -1,7 +1,6 @@
 /* Atelier KDE Printer Host for 3D Printing
-    Copyright (C) <2017-2018>
-    Author: Patrick José Pereira - patrickjp@kde.org
-            Kevin Ottens - ervin@kde.org
+    Copyright (C) <2018>
+    Author: Kevin Ottens - ervin@kde.org
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -22,31 +21,27 @@
 
 #pragma once
 
-#include <QVector>
 #include <QObject>
-#include <QNode>
-#include <QGeometryRenderer>
-#include "gcodeto4d.h"
 
-class LineMeshGeometry;
-class QString;
-
-class LineMesh : public Qt3DRender::QGeometryRenderer
+class BedProperties : public QObject
 {
     Q_OBJECT
-
+    Q_PROPERTY(int width READ width NOTIFY widthChanged)
+    Q_PROPERTY(int depth READ depth NOTIFY depthChanged)
 public:
-    explicit LineMesh(Qt3DCore::QNode *parent = Q_NULLPTR);
-    ~LineMesh() = default;
-    void read(const QString &path);
-    Q_INVOKABLE void readAndRun(const QString &path);
-    void posUpdate(const QVector<QVector4D> &pos);
+    explicit BedProperties(QObject *parent = nullptr);
+    ~BedProperties() = default;
+
+    int width() const;
+    int depth() const;
 
 signals:
-    void finished();
-    void run(const QString &path);
+    void widthChanged(int width);
+    void depthChanged(int depth);
 
 private:
-    GcodeTo4D _gcode;
-    LineMeshGeometry *_lineMeshGeo;
+    void updateBedSize(const QSize &size);
+
+    int m_width;
+    int m_depth;
 };

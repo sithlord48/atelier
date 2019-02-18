@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         i18n("(c) 2016"),
         // Optional text shown in the About box.
         // Can contain any information desired. (otherText)
-        i18n(""),
+        QString(),
         // The program homepage string. (homePageAddress = QString())
         QStringLiteral("http://atelier.kde.org"),
         // The bug report email address
@@ -65,8 +65,8 @@ int main(int argc, char *argv[])
     aboutData.setOtherText(i18n("Using AtCore:%1", QString(ATCORE_VERSION_STRING)));
     KAboutData::setApplicationData(aboutData);
 
-    MainWindow *m = new MainWindow();
-    m->setWindowIcon(QIcon(":/icon/atelier"));
-    m->show();
+    auto mainWindow = new MainWindow();
+    mainWindow->setWindowIcon(QIcon(":/icon/atelier"));
+    mainWindow->show();
     return app.exec();
 }

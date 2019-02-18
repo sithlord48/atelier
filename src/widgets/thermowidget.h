@@ -32,13 +32,14 @@ class ThermoWidget : public QwtDial
     Q_OBJECT
 
 public:
-    ThermoWidget(QWidget *parent, QString name);
+    ThermoWidget(QWidget *parent, const QString &name);
+    ~ThermoWidget() = default;
 
     void drawNeedle(QPainter *painter, const QPointF &center,
                     double radius, double dir, QPalette::ColorGroup colorGroup) const;
 
     void setCurrentTemperature(double temperature);
-    void setTargetTemperature(double temperature);
+    void setTargetTemperature(int temperature);
 
 signals:
     void targetTemperatureChanged(double targetTemperature);
@@ -51,6 +52,7 @@ protected:
     void wheelEvent(QWheelEvent *event);
 
 private:
+    bool isEqual(double a = 0, double b = 0);
     QwtDialSimpleNeedle *m_currentTemperatureNeedle;
     QwtDialSimpleNeedle *m_targetTemperatureNeedle;
     QString m_currentTemperatureTextFromEditor = QString("-");
@@ -60,6 +62,6 @@ private:
     bool m_paintCursor = false;
     int m_cursorPos = 0;
     double m_currentTemperature;
-    double m_targetTemperature;
+    int m_targetTemperature;
     void resetTimer();
 };

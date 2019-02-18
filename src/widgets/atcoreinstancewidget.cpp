@@ -25,45 +25,42 @@
 
 AtCoreInstanceWidget::AtCoreInstanceWidget(QWidget *parent):
     QWidget(parent)
-    , m_fileCount(0)
-    , m_printAction(nullptr)
-    , m_stopAction(nullptr)
-    , m_toolBar(nullptr)
+    , m_bedSize(200, 200)
 {
     m_theme = palette().text().color().value() >= QColor(Qt::lightGray).value() ? QString("dark") : QString("light") ;
     m_iconSize = QSize(fontMetrics().lineSpacing(), fontMetrics().lineSpacing());
-    QHBoxLayout *HLayout = new QHBoxLayout;
-    m_bedExtWidget = new BedExtruderWidget;
+    auto HLayout = new QHBoxLayout;
+    m_bedExtWidget = new BedExtruderWidget(this);
     HLayout->addWidget(m_bedExtWidget);
 
-    m_movementWidget = new MovementWidget(false);
+    m_movementWidget = new MovementWidget(false, this);
     m_movementWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
     HLayout->addWidget(m_movementWidget);
 
-    QVBoxLayout *VLayout = new QVBoxLayout;
+    auto VLayout = new QVBoxLayout;
     VLayout->addLayout(HLayout);
 
-    m_plotWidget = new PlotWidget();
+    m_plotWidget = new PlotWidget(this);
     VLayout->addWidget(m_plotWidget, 80);
 
-    QWidget *controlTab = new QWidget();
+    auto controlTab = new QWidget(this);
     controlTab->setLayout(VLayout);
 
     //AdvancedTab
     VLayout = new QVBoxLayout;
-    m_printWidget = new PrintWidget(false);
+    m_printWidget = new PrintWidget(false, this);
     VLayout->addWidget(m_printWidget);
 
-    m_commandWidget = new CommandWidget;
+    m_commandWidget = new CommandWidget(this);
     VLayout->addWidget(m_commandWidget);
 
-    m_logWidget = new LogWidget(new QTemporaryFile(QDir::tempPath() + QStringLiteral("/Atelier_")));
+    m_logWidget = new LogWidget(new QTemporaryFile(QDir::tempPath() + QStringLiteral("/Atelier_")), this);
     VLayout->addWidget(m_logWidget);
 
-    m_advancedTab = new QWidget;
+    m_advancedTab = new QWidget(this);
     m_advancedTab->setLayout(VLayout);
 
-    m_sdWidget = new SdWidget;
+    m_sdWidget = new SdWidget(this);
 
     VLayout = new QVBoxLayout();
     buildToolbar();
@@ -75,13 +72,13 @@ AtCoreInstanceWidget::AtCoreInstanceWidget(QWidget *parent):
     VLayout->addLayout(HLayout);
     m_toolBar->setHidden(true);
 
-    m_tabWidget = new QTabWidget;
+    m_tabWidget = new QTabWidget(this);
     m_tabWidget->addTab(controlTab, i18n("Controls"));
     m_tabWidget->addTab(m_advancedTab, i18n("Advanced"));
     m_tabWidget->addTab(m_sdWidget, i18n("Sd Card"));
     VLayout->addWidget(m_tabWidget);
 
-    m_statusWidget = new StatusWidget(false);
+    m_statusWidget = new StatusWidget(false, this);
     m_statusWidget->showPrintArea(false);
     VLayout->addWidget(m_statusWidget);
     setLayout(VLayout);
@@ -98,15 +95,15 @@ AtCoreInstanceWidget::~AtCoreInstanceWidget()
 
 void AtCoreInstanceWidget::buildToolbar()
 {
-    m_toolBar = new QToolBar();
+    m_toolBar = new QToolBar(this);
     m_toolBar->setIconSize(m_iconSize);
     m_toolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-    auto lb = new QLabel;
+    auto lb = new QLabel(this);
     QIcon icon = QIcon::fromTheme("go-home", QIcon(QString(":/%1/home").arg(m_theme)));
     lb->setPixmap(icon.pixmap(m_iconSize));
     m_toolBar->addWidget(lb);
-    lb = new QLabel(i18n("Home:"));
+    lb = new QLabel(i18n("Home:"), this);
     m_toolBar->addWidget(lb);
 
     auto homeAll = new QAction(i18n("All"));
@@ -115,26 +112,24 @@ void AtCoreInstanceWidget::buildToolbar()
     });
     m_toolBar->addAction(homeAll);
 
-    for (auto homes : std::map<QString, int> {{"X", AtCore::X}, {"Y", AtCore::Y}, {"Z", AtCore::Z}}) {
-        auto home = new QAction(homes.first);
+    for (const auto &homes : std::map<QString, int> {{"X", AtCore::X}, {"Y", AtCore::Y}, {"Z", AtCore::Z}}) {
+        auto home = new QAction(homes.first, this);
         connect(home, &QAction::triggered, this, [this, homes] {
-            m_core.home(homes.second);
+            m_core.home(uchar(homes.second));
         });
         m_toolBar->addAction(home);
     }
 
     m_toolBar->addSeparator();
 
-    m_printAction = new QAction(QIcon::fromTheme("media-playback-start", style()->standardIcon(QStyle::SP_MediaPlay)), i18n("Print"));
+    m_printAction = new QAction(QIcon::fromTheme("media-playback-start", style()->standardIcon(QStyle::SP_MediaPlay)), i18n("Print"), this);
     connect(m_printAction, &QAction::triggered, this, [this] {
-
         if (m_core.state() == AtCore::BUSY)
         {
             m_logWidget->appendLog(i18n("Pause Print"));
             pausePrint();
             return;
         }
-
         if (m_core.state() == AtCore::IDLE)
         {
             print();
@@ -146,15 +141,15 @@ void AtCoreInstanceWidget::buildToolbar()
     });
     m_toolBar->addAction(m_printAction);
 
-    m_stopAction = new QAction(QIcon::fromTheme("media-playback-stop", QIcon(QString(":/%1/stop").arg(m_theme))), i18n("Stop"));
+    m_stopAction = new QAction(QIcon::fromTheme("media-playback-stop", QIcon(QStringLiteral(":/%1/stop").arg(m_theme))), i18n("Stop"), this);
     connect(m_stopAction, &QAction::triggered, this, &AtCoreInstanceWidget::stopPrint);
     connect(m_stopAction, &QAction::triggered, this, [this] {
         m_printAction->setText(i18n("Print"));
-        m_printAction->setIcon(QIcon::fromTheme("media-playback-start", QIcon(QString(":/%1/start").arg(m_theme))));
+        m_printAction->setIcon(QIcon::fromTheme("media-playback-start", QIcon(QStringLiteral(":/%1/start").arg(m_theme))));
     });
     m_toolBar->addAction(m_stopAction);
 
-    auto disableMotorsAction = new QAction(style()->standardIcon(QStyle::SP_MediaStop), i18n("Disable Motors"));
+    auto disableMotorsAction = new QAction(style()->standardIcon(QStyle::SP_MediaStop), i18n("Disable Motors"), this);
     connect(disableMotorsAction, &QAction::triggered, this, &AtCoreInstanceWidget::disableMotors);
     m_toolBar->addAction(disableMotorsAction);
 
@@ -163,34 +158,42 @@ void AtCoreInstanceWidget::buildToolbar()
 
 void AtCoreInstanceWidget::buildConnectionToolbar()
 {
-    m_connectToolBar = new QToolBar();
-    m_comboPort = new QComboBox;
+    m_connectToolBar = new QToolBar(this);
+    m_comboPort = new QComboBox(this);
     m_comboPort->setEditable(true);
-    QLabel *deviceLabel = new QLabel(i18n("Device"));
-    QHBoxLayout *deviceLayout = new QHBoxLayout;
+    auto deviceLabel = new QLabel(i18n("Device"), this);
+    auto deviceLayout = new QHBoxLayout;
     deviceLayout->addWidget(deviceLabel);
     deviceLayout->addWidget(m_comboPort, 100);
 
-    m_comboProfile = new QComboBox;
+    m_comboProfile = new QComboBox(this);
     m_comboProfile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    QHBoxLayout *profileLayout = new QHBoxLayout;
-    QLabel *profileLabel = new QLabel(i18n("Profile"));
+    auto profileLayout = new QHBoxLayout;
+    auto profileLabel = new QLabel(i18n("Profile"), this);
     profileLayout->addWidget(profileLabel);
     profileLayout->addWidget(m_comboProfile, 100);
 
-    QHBoxLayout *connectLayout = new QHBoxLayout;
+    auto connectLayout = new QHBoxLayout;
     connectLayout->addLayout(deviceLayout, 50);
     connectLayout->addLayout(profileLayout, 50);
 
-    m_connectWidget = new QWidget();
+    m_connectWidget = new QWidget(this);
     m_connectWidget->setLayout(connectLayout);
     m_connectToolBar->addWidget(m_connectWidget);
 
-    m_connectButton = new QPushButton(QIcon::fromTheme("network-connect", QIcon(QString(":/%1/connect").arg(m_theme))), i18n("Connect"));
+    m_connectButton = new QPushButton(QIcon::fromTheme("network-connect", QIcon(QString(":/%1/connect").arg(m_theme))), i18n("Connect"), this);
     m_connectButton->setIconSize(m_iconSize);
     m_connectButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     connect(this, &AtCoreInstanceWidget::disableDisconnect, m_connectButton, &QPushButton::setDisabled);
     connect(m_connectButton, &QPushButton::clicked, this, &AtCoreInstanceWidget::connectButtonClicked);
+
+    m_connectionTimer = new QTimer(this);
+    m_connectionTimer->setInterval(20000);
+    m_connectionTimer->setSingleShot(true);
+    connect(m_connectionTimer, &QTimer::timeout, this, [this] {
+        m_connectButton->clicked();
+        QMessageBox::critical(this, tr("Connection Error"), tr("Your machine did not respond after 20 seconds.\n\nBefore connecting again check that your printer is on and your are connecting using the correct BAUD Rate for your device."));
+    });
 }
 
 void AtCoreInstanceWidget::connectButtonClicked()
@@ -217,12 +220,7 @@ void AtCoreInstanceWidget::connectButtonClicked()
         //Get profile data before connecting.
         m_profileData = readProfile();
         //then connect
-        if (m_core.initSerial(m_comboPort->currentText(), m_profileData["bps"].toInt())) {
-            QString fw = m_profileData["firmware"].toString();
-            m_logWidget->appendLog(i18n("Firmware: %1", fw));
-            if (fw != QString("Auto-Detect")) {
-                m_core.loadFirmwarePlugin(fw);
-            }
+        if (m_core.newConnection(m_comboPort->currentText(), m_profileData["bps"].toInt(), m_profileData["firmware"].toString())) {
             emit(connectionChanged(m_profileData["name"].toString()));
             m_profileData["heatedBed"].toBool() ? m_bedExtWidget->setBedMaxTemperature(m_profileData["bedTemp"].toInt()) :
             m_bedExtWidget->setBedThermoHidden(true);
@@ -230,6 +228,17 @@ void AtCoreInstanceWidget::connectButtonClicked()
             m_bedExtWidget->setExtruderMaxTemperature(m_profileData["hotendTemp"].toInt());
             //AddFan Support to profile
             m_printWidget->updateFanCount(2);
+            //Adjust bed size
+            QSize newSize;
+            if (m_profileData["isCartesian"].toBool()) {
+                newSize = QSize(m_profileData["dimensionX"].toInt(), m_profileData["dimensionY"].toInt());
+            } else {
+                newSize = QSize(m_profileData["radius"].toInt(), 0);
+            }
+            if (newSize != m_bedSize) {
+                m_bedSize = newSize;
+                emit bedSizeChanged(m_bedSize);
+            }
         }
     } else {
         m_core.closeConnection();
@@ -244,6 +253,13 @@ void AtCoreInstanceWidget::initConnectsToAtCore()
     m_core.setSerialTimerInterval(100);
     // Handle device changes
     connect(&m_core, &AtCore::portsChanged, this, &AtCoreInstanceWidget::updateSerialPort);
+
+    connect(&m_core, &AtCore::autoTemperatureReportChanged, this, [this](const bool autoReport) {
+        if (m_profileData["autoReportTemp"].toBool() != autoReport) {
+            m_profileData["autoReportTemp"] = autoReport;
+            saveProfile();
+        }
+    });
     // Handle AtCore status change
     connect(&m_core, &AtCore::stateChanged, this, &AtCoreInstanceWidget::handlePrinterStatusChanged);
     // If the number of extruders from the printer change, we need to update the radiobuttons on the widget
@@ -271,6 +287,12 @@ void AtCoreInstanceWidget::initConnectsToAtCore()
         m_logWidget->appendLog(GCode::description(GCode::G1));
         m_core.move(axis, value);
     });
+
+    connect(m_movementWidget, &MovementWidget::unitsChanged, this, [this](int units) {
+        auto selection = static_cast<AtCore::UNITS>(units);
+        m_core.setUnits(selection);
+    });
+
     connect(m_movementWidget, &MovementWidget::relativeMove, this, [this](const QLatin1Char & axis, const double value) {
         m_logWidget->appendLog(i18n("Relative Move: %1, %2", axis, QString::number(value)));
         m_core.setRelativePosition();
@@ -311,7 +333,23 @@ void AtCoreInstanceWidget::initConnectsToAtCore()
 
 void AtCoreInstanceWidget::printFile(const QUrl &fileName)
 {
-    if (!fileName.isEmpty() && (m_core.state() == AtCore::IDLE)) {
+    if (fileName.isEmpty()) {
+        QMessageBox::critical(
+            this
+            , i18n("Filename Empty")
+            , i18n("No filename sent from calling method, please check and try again.")
+        );
+        return;
+    }
+    if (!QFileInfo(fileName.toLocalFile()).isReadable()) {
+        QMessageBox::critical(
+            this
+            , i18n("File not found")
+            , i18n("%1 \nIs not readable, please check and try again.", fileName.toLocalFile())
+        );
+        return;
+    }
+    if (m_core.state() == AtCore::IDLE) {
         m_logWidget->appendLog(i18n("Printing:%1", fileName.toLocalFile()));
         m_core.print(fileName.toLocalFile());
     }
@@ -346,6 +384,7 @@ void AtCoreInstanceWidget::handlePrinterStatusChanged(AtCore::STATES newState)
     static QString stateString;
     switch (newState) {
     case AtCore::CONNECTING: {
+        m_connectionTimer->start();
         m_core.setSerialTimerInterval(0);
         m_connectButton->setText(i18n("Disconnect"));
         m_connectButton->setIcon(QIcon::fromTheme("network-disconnect", QIcon(QString(":/%1/disconnect").arg(m_theme))));
@@ -354,10 +393,14 @@ void AtCoreInstanceWidget::handlePrinterStatusChanged(AtCore::STATES newState)
         stateString = i18n("Connecting...");
         m_logWidget->appendLog(i18n("Attempting to Connect"));
         connect(&m_core, &AtCore::receivedMessage, m_logWidget, &LogWidget::appendRLog);
-        connect(m_core.serial(), &SerialLayer::pushedCommand, m_logWidget, &LogWidget::appendSLog);
+        connect(&m_core, &AtCore::pushedCommand, m_logWidget, &LogWidget::appendSLog);
     } break;
     case AtCore::IDLE: {
-        stateString = i18n("Connected to %1", m_core.serial()->portName());
+        if (m_connectionTimer->isActive()) {
+            m_core.setAutoTemperatureReport(m_profileData["autoReportTemp"].toBool());
+            m_connectionTimer->stop();
+        }
+        stateString = i18n("Connected to %1", m_core.connectedPort());
         emit extruderCountChanged(m_core.extruderCount());
         m_logWidget->appendLog(stateString);
         emit disableDisconnect(false);
@@ -366,11 +409,18 @@ void AtCoreInstanceWidget::handlePrinterStatusChanged(AtCore::STATES newState)
         if (m_profileData["heatedBed"].toBool()) {
             connectBedTemperatureData(true);
         }
+        if (!m_core.availableFirmwarePlugins().contains(m_profileData["firmware"].toString())) {
+            m_profileData["firmware"] = m_core.firmwarePlugin()->name().toLower();
+            saveProfile();
+        }
     } break;
     case AtCore::DISCONNECTED: {
+        if (m_connectionTimer->isActive()) {
+            m_connectionTimer->stop();
+        }
         stateString = i18n("Not Connected");
         disconnect(&m_core, &AtCore::receivedMessage, m_logWidget, &LogWidget::appendRLog);
-        disconnect(m_core.serial(), &SerialLayer::pushedCommand, m_logWidget, &LogWidget::appendSLog);
+        disconnect(&m_core, &AtCore::pushedCommand, m_logWidget, &LogWidget::appendSLog);
         m_logWidget->appendLog(i18n("Serial disconnected"));
         m_core.setSerialTimerInterval(100);
         m_connectButton->setText(i18n("Connect"));
@@ -416,44 +466,41 @@ void AtCoreInstanceWidget::handlePrinterStatusChanged(AtCore::STATES newState)
     } break;
     default:
         m_logWidget->appendLog(i18n("Unknown AtCore State, %1", newState));
-        qWarning("AtCore State not Recognized.");
         break;
     }
     m_statusWidget->setState(stateString);
 }
 
-void AtCoreInstanceWidget::checkTemperature(uint sensorType, uint number, uint temp)
+void AtCoreInstanceWidget::checkTemperature(uint sensorType, uint number, float temp)
 {
     static QString msg;
     switch (sensorType) {
     case 0x00: // bed
-        msg = QString::fromLatin1("Bed Temperature ");
+        msg = QString::fromLatin1("Bed Temperature");
         break;
 
     case 0x01: // bed target
-        msg = QString::fromLatin1("Bed Target Temperature ");
+        msg = QString::fromLatin1("Bed Target Temperature");
         break;
 
     case 0x02: // extruder
-        msg = QString::fromLatin1("Extruder Temperature ");
+        msg = QString::fromLatin1("Extruder[%1] Temperature").arg(QString::number(number));
         break;
 
     case 0x03: // extruder target
-        msg = QString::fromLatin1("Extruder Target Temperature ");
+        msg = QString::fromLatin1("Extruder[%1] Target Temperature").arg(QString::number(number));
         break;
 
     case 0x04: // enclosure
-        msg = QString::fromLatin1("Enclosure Temperature ");
+        msg = QString::fromLatin1("Enclosure Temperature");
         break;
 
     case 0x05: // enclosure target
-        msg = QString::fromLatin1("Enclosure Target Temperature ");
+        msg = QString::fromLatin1("Enclosure Target Temperature");
         break;
     }
 
-    msg.append(QString::fromLatin1("[%1] : %2"));
-    msg = msg.arg(QString::number(number))
-          .arg(QString::number(temp));
+    msg.append(QString::fromLatin1(": %1").arg(QString::number(double(temp), 'f', 2)));
     m_logWidget->appendLog(msg);
 }
 
@@ -540,13 +587,31 @@ QMap<QString, QVariant> AtCoreInstanceWidget::readProfile()
         , {"bedTemp", m_settings.value(QStringLiteral("maximumTemperatureBed"), QStringLiteral("0"))}
         , {"hotendTemp", m_settings.value(QStringLiteral("maximumTemperatureExtruder"), QStringLiteral("0"))}
         , {"firmware", m_settings.value(QStringLiteral("firmware"), QStringLiteral("Auto-Detect"))}
-        , {"postPause", m_settings.value(QStringLiteral("postPause"), QStringLiteral(""))}
+        , {"postPause", m_settings.value(QStringLiteral("postPause"), QString())}
         , {"heatedBed", m_settings.value(QStringLiteral("heatedBed"), true)}
         , {"name", profile}
+        , {"isCartesian", m_settings.value(QStringLiteral("isCartesian"), true)}
+        , {"dimensionX", m_settings.value(QStringLiteral("dimensionX"), QStringLiteral("200"))}
+        , {"dimensionY", m_settings.value(QStringLiteral("dimensionY"), QStringLiteral("200"))}
+        , {"dimensionZ", m_settings.value(QStringLiteral("dimensionZ"), QStringLiteral("180"))}
+        , {"radius", m_settings.value(QStringLiteral("radius"), QStringLiteral("200"))}
+        , {"z_delta_dimension", m_settings.value(QStringLiteral("z_delta_dimension"), QStringLiteral("180"))}
+        , {"autoReportTemp", m_settings.value(QStringLiteral("autoReportTemp"), false)}
     };
     m_settings.endGroup();
     m_settings.endGroup();
     return data;
+}
+
+void AtCoreInstanceWidget::saveProfile()
+{
+    QString profile = m_comboProfile->currentText();
+    m_settings.beginGroup("Profiles");
+    m_settings.beginGroup(m_profileData["name"].toString());
+    m_settings.setValue(QStringLiteral("firmware"), m_profileData["firmware"]);
+    m_settings.setValue(QStringLiteral("autoReportTemp"), m_profileData["autoReportTemp"]);
+    m_settings.endGroup();
+    m_settings.endGroup();
 }
 
 void AtCoreInstanceWidget::connectBedTemperatureData(bool connected)
@@ -556,23 +621,25 @@ void AtCoreInstanceWidget::connectBedTemperatureData(bool connected)
             return;
         }
         m_plotWidget->addPlot(i18n("Actual Bed"));
-        connect(&m_core.temperature(), &Temperature::bedTemperatureChanged, [this](const float & temp) {
+        connect(m_core.temperature().get(), &Temperature::bedTemperatureChanged, [this] {
+            const float temp = m_core.temperature().get()->bedTemperature();
             checkTemperature(0x00, 0, temp);
             m_plotWidget->appendPoint(i18n("Actual Bed"), temp);
             m_bedExtWidget->updateBedTemp(temp);
         });
         m_plotWidget->addPlot(i18n("Target Bed"));
-        connect(&m_core.temperature(), &Temperature::bedTargetTemperatureChanged, [this](const float & temp) {
+        connect(m_core.temperature().get(), &Temperature::bedTargetTemperatureChanged, [this] {
+            const float temp = m_core.temperature().get()->bedTargetTemperature();
             checkTemperature(0x01, 0, temp);
             m_plotWidget->appendPoint(i18n("Target Bed"), temp);
-            m_bedExtWidget->updateBedTargetTemp(temp);
+            m_bedExtWidget->updateBedTargetTemp(int(temp));
         });
     } else {
         if (m_plotWidget->plots().contains(i18n("Actual Bed"))) {
             m_plotWidget->removePlot(i18n("Actual Bed"));
-            disconnect(&m_core.temperature(), &Temperature::bedTemperatureChanged, this, nullptr);
+            disconnect(m_core.temperature().get(), &Temperature::bedTemperatureChanged, this, nullptr);
             m_plotWidget->removePlot(i18n("Target Bed"));
-            disconnect(&m_core.temperature(), &Temperature::bedTargetTemperatureChanged, this, nullptr);
+            disconnect(m_core.temperature().get(), &Temperature::bedTargetTemperatureChanged, this, nullptr);
         }
     }
 }
@@ -585,23 +652,30 @@ void AtCoreInstanceWidget::connectExtruderTemperatureData(bool connected)
         }
         //Add Extruder.
         m_plotWidget->addPlot(i18n("Actual Ext.1"));
-        connect(&m_core.temperature(), &Temperature::extruderTemperatureChanged, this, [this](const float & temp) {
+        connect(m_core.temperature().get(), &Temperature::extruderTemperatureChanged, this, [this] {
+            const float temp = m_core.temperature().get()->extruderTemperature();
             checkTemperature(0x02, 0, temp);
             m_plotWidget->appendPoint(i18n("Actual Ext.1"), temp);
             m_bedExtWidget->updateExtTemp(temp);
         });
         m_plotWidget->addPlot(i18n("Target Ext.1"));
-        connect(&m_core.temperature(), &Temperature::extruderTargetTemperatureChanged, this, [this](const float & temp) {
+        connect(m_core.temperature().get(), &Temperature::extruderTargetTemperatureChanged, this, [this] {
+            const float temp = m_core.temperature().get()->extruderTargetTemperature();
             checkTemperature(0x03, 0, temp);
             m_plotWidget->appendPoint(i18n("Target Ext.1"), temp);
-            m_bedExtWidget->updateExtTargetTemp(temp);
+            m_bedExtWidget->updateExtTargetTemp(int(temp));
         });
     } else {
         if (m_plotWidget->plots().contains(i18n("Actual Ext.1"))) {
             m_plotWidget->removePlot(i18n("Actual Ext.1"));
-            disconnect(&m_core.temperature(), &Temperature::extruderTemperatureChanged, this, nullptr);
+            disconnect(m_core.temperature().get(), &Temperature::extruderTemperatureChanged, this, nullptr);
             m_plotWidget->removePlot(i18n("Target Ext.1"));
-            disconnect(&m_core.temperature(), &Temperature::extruderTargetTemperatureChanged, this, nullptr);
+            disconnect(m_core.temperature().get(), &Temperature::extruderTargetTemperatureChanged, this, nullptr);
         }
     }
+}
+
+QSize AtCoreInstanceWidget::bedSize()
+{
+    return m_bedSize;
 }
