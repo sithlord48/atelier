@@ -19,8 +19,8 @@
 */
 #pragma once
 
-#include <qwt_dial.h>
-#include <qwt_dial_needle.h>
+#include <qwt/qwt_dial.h>
+#include <qwt/qwt_dial_needle.h>
 
 class QKeyEvent;
 class QPaintEvent;
